@@ -1,4 +1,3 @@
-cat << 'EOF' > app.py
 import streamlit as st
 import pandas as pd
 import requests
@@ -59,7 +58,7 @@ def load_attendees(token, event_id):
                 "Nome": prof.get('first_name', ''),
                 "Cognome": prof.get('last_name', ''),
                 "Email": prof.get('email', ''),
-                “Percorso”: a.get('ticket_class_name', 'Generico'),
+                "Percorso": a.get('ticket_class_name', 'Generico'),
                 "Data Iscrizione": a.get('created', '')[:10],
                 "Stato": a.get('status', '')
             })
@@ -104,4 +103,3 @@ if df is not None and not df.empty:
         
 elif df is not None and df.empty:
     st.warning("❄️ Nessun iscritto trovato al momento per questo Event ID.")
-EOF
