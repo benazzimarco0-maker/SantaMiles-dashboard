@@ -24,7 +24,6 @@ jobs:
         run: pip install requests pandas
 
       - name: Esegui controllo iscritti
-        working-directory: "bot aggiornamenti"
         run: python bot_notifiche.py
 
       - name: Salva memoria nuovi iscritti
