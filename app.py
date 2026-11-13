@@ -26,8 +26,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🎄 INTESTAZIONE SANTA MILES
-st.title("🎄 Santa Miles – Dashboard Ufficiale Iscrizioni 🏃‍♂️🎅")
-st.markdown("### *“Stai al sicuro durante le feste: corri con noi!”* 🎁")
+st.title("🎄 Santa Miles Dashboard 🏃‍♂️🎅")
 st.markdown("---")
 
 @st.cache_data(ttl=60)
@@ -66,7 +65,7 @@ def load_attendees(token, event_id):
             attendees_list.append({
                 "Nome": prof.get('first_name', '').strip(),
                 "Cognome": prof.get('last_name', '').strip(),
-                "Email": prof.get('email', ''),
+                "Email": prof.get('email', '').strip(),
                 "Percorso": a.get('ticket_class_name', 'Generico'),
                 "Data Iscrizione": created_full[:10],
                 "_timestamp": created_full,
@@ -79,24 +78,25 @@ def load_attendees(token, event_id):
 
     df = pd.DataFrame(attendees_list)
 
-    # 🧹 RIMOZIONE DOPPIONI CON PRIORITÀ AL BIGLIETTO PROMO
+    # 🧹 RIMOZIONE DOPPIONI CON PRIORITÀ AL BIGLIETTO PROMO (SALVANDO GLI OMONIMI CON EMAIL DIVERSE)
     if not df.empty:
-        # Creiamo colonne temporanee per confrontare nomi e individuare i "promo"
+        # Creiamo colonne temporanee per confrontare nome, cognome, email e individuare i "promo"
         df['_nome_norm'] = df['Nome'].str.lower().str.strip()
         df['_cognome_norm'] = df['Cognome'].str.lower().str.strip()
+        df['_email_norm'] = df['Email'].str.lower().str.strip()
         df['_is_promo'] = df['Percorso'].str.lower().str.contains('promo', na=False)
         
         # Ordiniamo mettendo i "promo" (True) in cima e tenendo il più vecchio come timestamp
         df = df.sort_values(by=['_is_promo', '_timestamp'], ascending=[False, True])
         
-        # Rimuoviamo i duplicati di Nome+Cognome tenendo il primo (quindi il promo se esiste)
-        df = df.drop_duplicates(subset=['_nome_norm', '_cognome_norm'], keep='first')
+        # Rimuoviamo i duplicati solo se coincidono Nome + Cognome + Email
+        df = df.drop_duplicates(subset=['_nome_norm', '_cognome_norm', '_email_norm'], keep='first')
         
         # Ordiniamo cronologicamente dal primo iscritto (1) all'ultimo
         df = df.sort_values(by='_timestamp', ascending=True).reset_index(drop=True)
         
         # Ripuliamo le colonne temporanee
-        df = df.drop(columns=['_nome_norm', '_cognome_norm', '_is_promo', '_timestamp'])
+        df = df.drop(columns=['_nome_norm', '_cognome_norm', '_email_norm', '_is_promo', '_timestamp'])
         
         # Facciamo partire la numerazione dell'elenco da 1 anziché da 0
         df.index = df.index + 1
@@ -111,7 +111,7 @@ if df is not None and not df.empty:
     percentuale = min(int((total_iscritti / TARGET_GOAL) * 100), 100)
     
     col1, col2, col3 = st.columns(3)
-    col1.metric("🎁 Totale Babbi Runner", f"{total_iscritti}", delta=f"{total_iscritti - TARGET_GOAL} al Target")
+    col1.metric("🎁 Totale Runner", f"{total_iscritti}", delta=f"{total_iscritti - TARGET_GOAL} al Target")
     col2.metric("🎯 Traguardo Iscritti", f"{TARGET_GOAL}")
     col3.metric("✨ Completamento Target", f"{percentuale}%")
 
@@ -127,12 +127,12 @@ if df is not None and not df.empty:
     col_left, col_right = st.columns([1, 2])
     
     with col_left:
-        st.subheader("🏃 Ripartizione Percorsi")
+        st.subheader("🏃 Ripartizione Biglietti")
         ticket_counts = df['Percorso'].value_counts()
         st.bar_chart(ticket_counts)
         
     with col_right:
-        st.subheader("📋 Elenco Babbi Natale Iscritti")
+        st.subheader("📋 Elenco Iscritti")
         st.dataframe(df[["Nome", "Cognome", "Percorso", "Data Iscrizione"]], use_container_width=True)
         
 elif df is not None and df.empty:
