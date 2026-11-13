@@ -24,20 +24,11 @@ jobs:
         run: pip install requests pandas
 
       - name: Esegui controllo iscritti
-        run: |
-          FILE_PATH=$(find . -name "batch_aggiornamenti.py" | head -n 1)
-          if [ -z "$FILE_PATH" ]; then
-            echo "❌ File non trovato! Ecco i file presenti nel repository:"
-            find . -maxdepth 3 -not -path '*/.*'
-            exit 1
-          fi
-          DIR_PATH=$(dirname "$FILE_PATH")
-          cd "$DIR_PATH"
-          python batch_aggiornamenti.py
+        run: python "bot aggiornamenti.py"
 
       - name: Salva memoria nuovi iscritti
         run: |
           git config user.name "SantaMilesBot"
           git config user.email "bot@users.noreply.github.com"
-          git add -A
+          git add iscritti_notificati.json
           git diff --staged --quiet || (git commit -m "Aggiorna lista iscritti notificati" && git push)
