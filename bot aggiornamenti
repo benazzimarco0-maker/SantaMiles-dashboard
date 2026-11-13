@@ -1,4 +1,3 @@
-import time
 import json
 import os
 import requests
@@ -13,7 +12,6 @@ TELEGRAM_TOKEN = "9046510007:AAE6cRiUkYbqzVO1BUq2uIlJR7tb4ej7iJA"
 TELEGRAM_CHAT_ID = "-1004476875405"
 
 FILE_MEMORIA = "iscritti_notificati.json"
-INTERVALLO_SECONDI = 60
 
 
 def invia_telegram(nome, cognome):
@@ -26,7 +24,7 @@ def invia_telegram(nome, cognome):
     }
     res = requests.post(url, json=payload)
     if res.status_code == 200:
-        print(f"✅ Inviato su Telegram: {nome} {cognome}")
+        print(f"✅ Inviato: {nome} {cognome}")
         return True
     else:
         print(f"❌ Errore Telegram: {res.text}")
@@ -97,36 +95,21 @@ def scarica_iscritti_puliti():
     return df
 
 
-def avvia_monitoraggio():
-    print("🎄 Bot Santa Miles avviato! Controllo nuove iscrizioni ogni minuto...")
+if __name__ == "__main__":
     notificati = carica_memoria()
+    df = scarica_iscritti_puliti()
 
-    # Al primissimo avvio memorizza tutti gli iscritti tranne l'ultimo, così fa subito 1 test
-    if not notificati:
-        df_iniziale = scarica_iscritti_puliti()
-        if not df_iniziale.empty:
-            for _, row in df_iniziale.iloc[:-1].iterrows():
+    if not df.empty:
+        # Al primissimo avvio memorizza tutti tranne l'ultimo, così invia 1 messaggio di test
+        if not notificati:
+            for _, row in df.iloc[:-1].iterrows():
                 chiave = f"{row['_nome_norm']}|{row['_cognome_norm']}|{row['_email_norm']}"
                 notificati.add(chiave)
-            salva_memoria(notificati)
-            print(f"📌 Memorizzati {len(notificati)} iscritti passati. Invio l'ultimo come test...")
 
-    while True:
-        try:
-            df = scarica_iscritti_puliti()
-            if not df.empty:
-                for _, row in df.iterrows():
-                    chiave = f"{row['_nome_norm']}|{row['_cognome_norm']}|{row['_email_norm']}"
-                    if chiave not in notificati:
-                        if invia_telegram(row['Nome'], row['Cognome']):
-                            notificati.add(chiave)
-                            salva_memoria(notificati)
-                        time.sleep(1)
-        except Exception as e:
-            print(f"⚠️ Errore temporaneo: {e}")
+        for _, row in df.iterrows():
+            chiave = f"{row['_nome_norm']}|{row['_cognome_norm']}|{row['_email_norm']}"
+            if chiave not in notificati:
+                if invia_telegram(row['Nome'], row['Cognome']):
+                    notificati.add(chiave)
 
-        time.sleep(INTERVALLO_SECONDI)
-
-
-if __name__ == "__main__":
-    avvia_monitoraggio()
+        salva_memoria(notificati)
