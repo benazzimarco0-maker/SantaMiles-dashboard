@@ -1,6 +1,9 @@
 import json
 import os
+import time
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import pandas as pd
 
 # 🎅 CONFIGURAZIONE EVENTBRITE
@@ -13,6 +16,17 @@ TELEGRAM_CHAT_ID = "-1004476875405"
 
 FILE_MEMORIA = "iscritti_notificati.json"
 
+# 🔄 SESSIONE HTTP CON RETRY AUTOMATICI
+session = requests.Session()
+retry_strategy = Retry(
+    total=5,
+    backoff_factor=1,                           # Attende 1s, 2s, 4s, 8s... tra i tentativi
+    status_forcelist=[429, 500, 502, 503, 504], # Riprova su rate-limit ed errori temporanei
+    allowed_methods=["GET", "POST"]             # Abilita retry sia su Eventbrite (GET) che Telegram (POST)
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("https://", adapter)
+
 
 def invia_telegram(nome, cognome):
     testo = f"🎅 <b>{nome} {cognome}</b> parteciperà alla Santa Miles!"
@@ -22,12 +36,17 @@ def invia_telegram(nome, cognome):
         "text": testo,
         "parse_mode": "HTML"
     }
-    res = requests.post(url, json=payload)
-    if res.status_code == 200:
-        print(f"✅ Inviato: {nome} {cognome}")
-        return True
-    else:
-        print(f"❌ Errore Telegram: {res.text}")
+    try:
+        res = session.post(url, json=payload, timeout=15)
+        if res.status_code == 200:
+            print(f"✅ Inviato: {nome} {cognome}")
+            time.sleep(0.15)  # Piccola pausa per evitare blocchi da invii troppo ravvicinati
+            return True
+        else:
+            print(f"❌ Errore Telegram ({res.status_code}): {res.text}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Errore di rete durante l'invio a {nome} {cognome}: {e}")
         return False
 
 
@@ -52,7 +71,12 @@ def scarica_iscritti_puliti():
 
     while has_more_items:
         params = {'continuation': continuation_token} if continuation_token else {}
-        res = requests.get(url, headers=headers, params=params)
+        try:
+            res = session.get(url, headers=headers, params=params, timeout=15)
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️ Errore di connessione Eventbrite: {e}")
+            return pd.DataFrame()
+
         if res.status_code != 200:
             print(f"⚠️ Errore Eventbrite ({res.status_code})")
             return pd.DataFrame()
@@ -111,5 +135,4 @@ if __name__ == "__main__":
             if chiave not in notificati:
                 if invia_telegram(row['Nome'], row['Cognome']):
                     notificati.add(chiave)
-
-        salva_memoria(notificati)
+                    salva_memoria(notificati)  # Salva subito dopo ogni invio riuscito
