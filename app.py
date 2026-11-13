@@ -62,12 +62,14 @@ def load_attendees(token, event_id):
                 continue
 
             prof = a.get('profile', {})
+            created_full = a.get('created', '')
             attendees_list.append({
                 "Nome": prof.get('first_name', '').strip(),
                 "Cognome": prof.get('last_name', '').strip(),
                 "Email": prof.get('email', ''),
                 "Percorso": a.get('ticket_class_name', 'Generico'),
-                "Data Iscrizione": a.get('created', '')[:10],
+                "Data Iscrizione": created_full[:10],
+                "_timestamp": created_full,
                 "Stato": a.get('status', '')
             })
         
@@ -84,15 +86,20 @@ def load_attendees(token, event_id):
         df['_cognome_norm'] = df['Cognome'].str.lower().str.strip()
         df['_is_promo'] = df['Percorso'].str.lower().str.contains('promo', na=False)
         
-        # Ordiniamo mettendo i "promo" (True) in cima rispetto ai normali (False)
-        df = df.sort_values(by=['_is_promo', 'Data Iscrizione'], ascending=[False, True])
+        # Ordiniamo mettendo i "promo" (True) in cima e tenendo il più vecchio come timestamp
+        df = df.sort_values(by=['_is_promo', '_timestamp'], ascending=[False, True])
         
         # Rimuoviamo i duplicati di Nome+Cognome tenendo il primo (quindi il promo se esiste)
         df = df.drop_duplicates(subset=['_nome_norm', '_cognome_norm'], keep='first')
         
-        # Ripuliamo le colonne temporanee e riordiniamo per data di iscrizione
-        df = df.drop(columns=['_nome_norm', '_cognome_norm', '_is_promo'])
-        df = df.sort_values(by='Data Iscrizione', ascending=False).reset_index(drop=True)
+        # Ordiniamo cronologicamente dal primo iscritto (1) all'ultimo
+        df = df.sort_values(by='_timestamp', ascending=True).reset_index(drop=True)
+        
+        # Ripuliamo le colonne temporanee
+        df = df.drop(columns=['_nome_norm', '_cognome_norm', '_is_promo', '_timestamp'])
+        
+        # Facciamo partire la numerazione dell'elenco da 1 anziché da 0
+        df.index = df.index + 1
 
     return df
 
