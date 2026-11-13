@@ -2,8 +2,8 @@ name: Bot Telegram Santa Miles
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Controlla ogni 5 minuti
-  workflow_dispatch:      # Ti permette di avviarlo a mano per testarlo
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,11 +24,12 @@ jobs:
         run: pip install requests pandas
 
       - name: Esegui controllo iscritti
-        run: python bot_notifiche.py
+        working-directory: "bot Telegram"
+        run: python batch_aggiornamenti.py
 
       - name: Salva memoria nuovi iscritti
         run: |
           git config user.name "SantaMilesBot"
           git config user.email "bot@users.noreply.github.com"
-          git add "bot aggiornamenti/iscritti_notificati.json"
+          git add "bot Telegram/iscritti_notificati.json"
           git diff --staged --quiet || (git commit -m "Aggiorna lista iscritti notificati" && git push)
