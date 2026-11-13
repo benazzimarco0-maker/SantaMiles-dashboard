@@ -1,0 +1,35 @@
+name: Bot Telegram Santa Miles
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # Controlla ogni 5 minuti
+  workflow_dispatch:      # Ti permette di avviarlo a mano per testarlo
+
+permissions:
+  contents: write
+
+jobs:
+  controlla-iscritti:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica codice
+        uses: actions/checkout@v4
+
+      - name: Imposta Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installa librerie
+        run: pip install requests pandas
+
+      - name: Esegui controllo iscritti
+        working-directory: "bot aggiornamenti"
+        run: python bot_notifiche.py
+
+      - name: Salva memoria nuovi iscritti
+        run: |
+          git config user.name "SantaMilesBot"
+          git config user.email "bot@users.noreply.github.com"
+          git add "bot aggiornamenti/iscritti_notificati.json"
+          git diff --staged --quiet || (git commit -m "Aggiorna lista iscritti notificati" && git push)
