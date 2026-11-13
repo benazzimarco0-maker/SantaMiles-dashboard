@@ -53,6 +53,14 @@ def load_attendees(token, event_id):
         
         data = res.json()
         for a in data.get('attendees', []):
+            # 🚫 SALTA BIGLIETTI ANNULLATI O RIMBORSATI
+            is_cancelled = a.get('cancelled', False)
+            is_refunded = a.get('refunded', False)
+            status = str(a.get('status', '')).lower()
+            
+            if is_cancelled or is_refunded or status not in ['attending', 'checked in']:
+                continue
+
             prof = a.get('profile', {})
             attendees_list.append({
                 "Nome": prof.get('first_name', '').strip(),
