@@ -55,8 +55,8 @@ def load_attendees(token, event_id):
         for a in data.get('attendees', []):
             prof = a.get('profile', {})
             attendees_list.append({
-                "Nome": prof.get('first_name', ''),
-                "Cognome": prof.get('last_name', ''),
+                "Nome": prof.get('first_name', '').strip(),
+                "Cognome": prof.get('last_name', '').strip(),
                 "Email": prof.get('email', ''),
                 "Percorso": a.get('ticket_class_name', 'Generico'),
                 "Data Iscrizione": a.get('created', '')[:10],
@@ -67,7 +67,26 @@ def load_attendees(token, event_id):
         has_more_items = pagination.get('has_more_items', False)
         continuation_token = pagination.get('continuation', None)
 
-    return pd.DataFrame(attendees_list)
+    df = pd.DataFrame(attendees_list)
+
+    # 🧹 RIMOZIONE DOPPIONI CON PRIORITÀ AL BIGLIETTO PROMO
+    if not df.empty:
+        # Creiamo colonne temporanee per confrontare nomi e individuare i "promo"
+        df['_nome_norm'] = df['Nome'].str.lower().str.strip()
+        df['_cognome_norm'] = df['Cognome'].str.lower().str.strip()
+        df['_is_promo'] = df['Percorso'].str.lower().str.contains('promo', na=False)
+        
+        # Ordiniamo mettendo i "promo" (True) in cima rispetto ai normali (False)
+        df = df.sort_values(by=['_is_promo', 'Data Iscrizione'], ascending=[False, True])
+        
+        # Rimuoviamo i duplicati di Nome+Cognome tenendo il primo (quindi il promo se esiste)
+        df = df.drop_duplicates(subset=['_nome_norm', '_cognome_norm'], keep='first')
+        
+        # Ripuliamo le colonne temporanee e riordiniamo per data di iscrizione
+        df = df.drop(columns=['_nome_norm', '_cognome_norm', '_is_promo'])
+        df = df.sort_values(by='Data Iscrizione', ascending=False).reset_index(drop=True)
+
+    return df
 
 # 📊 CONTENUTO PRINCIPALE
 df = load_attendees(API_TOKEN, EVENT_ID)
